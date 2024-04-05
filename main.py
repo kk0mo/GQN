@@ -15,7 +15,7 @@ parser.add_argument('--EnvIdex', type=int, default=3, help='Humanoid-v4,HalfChee
 parser.add_argument('--render', type=str2bool, default=False, help='Render or Not')
 parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
 parser.add_argument('--ModelIdex', type=int, default=30, help='which model to load')
-parser.add_argument('--write', type=str2bool, default=True, help='Use SummaryWriter to record the training')
+parser.add_argument('--write', type=str2bool, default=False, help='Use SummaryWriter to record the training')
 
 parser.add_argument('--seed', type=int, default=0, help='random seed')
 parser.add_argument('--update_every', type=int, default=50, help='training frequency')
@@ -77,8 +77,12 @@ def main():
     if opt.Loadmodel: agent.load(EnvName[opt.EnvIdex], opt.ModelIdex)
 
     if opt.render:
+        c_nt = 0
         while True:
-            score = evaluate_policy(env, agent, turns=1)
+            if c_nt > 10:
+                break
+            c_nt += 1
+            score = evaluate_policy(env, agent, opt.device, turns=1)
             print('EnvName:', EnvName[opt.EnvIdex], 'score:', score)
     else:
         total_steps = 0
@@ -114,18 +118,19 @@ def main():
                     agent.explore_noise *= opt.explore_noise_decay
                     ep_r = evaluate_policy(eval_env, agent, opt.device, turns=3)
                     if opt.write: writer.add_scalar('ep_r', ep_r, global_step=total_steps)
-                    print(f'EnvName:{EnvName[opt.EnvIdex]}, Steps: {int(total_steps/1000)}k, Episode Reward:{ep_r}')
+                    # Assuming total_steps is defined somewhere in your code
+                    total_steps_suffix = "k" if total_steps < 1e6 else "m"
+                    total_steps_value = total_steps / 1000 if total_steps < 1e6 else total_steps / 1e6
+                    formatted_steps = f"{int(total_steps_value)}{total_steps_suffix}"
+                    print(f'EnvName:{EnvName[opt.EnvIdex]}, Steps: {formatted_steps}, Episode Reward:{ep_r}')
+
 
                 '''save model'''
                 if total_steps % opt.save_interval == 0:
-                    agent.save(EnvName[opt.EnvIdex], int(total_steps/1000))
+                    agent.save(EnvName[opt.EnvIdex], int(total_steps / 1e5))
         env.close()
         eval_env.close()
 
 
 if __name__ == '__main__':
     main()
-
-
-
-
