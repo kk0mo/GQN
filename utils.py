@@ -18,8 +18,8 @@ class Actor(nn.Module):
         self.gmm_k = gmm_k
 
     def forward(self, state):
-        x = torch.tanh(self.fc1(state))
-        x = torch.tanh(self.fc2(x))
+        x = F.softplus(self.fc1(state))
+        x = F.softplus(self.fc2(x))
         lamda_array = torch.softmax(self.fc_lamda(x), dim=-1)
         #print(lamda_array)
         lamda_i = torch.multinomial(lamda_array, num_samples=1)
@@ -28,11 +28,12 @@ class Actor(nn.Module):
         indices = lamda_i.expand(-1, self.action_dim).unsqueeze(1)
         mu = torch.tanh(self.fc_mu(x))
         mu_reshaped = mu.view(-1, self.gmm_k, self.action_dim)
-        #print(mu_reshaped)
+        #print(mu_reshaped.shape)
         mu_i = torch.gather(mu_reshaped, 1, indices).squeeze(1)
         #print(mu_i.shape)
-        scale = torch.full(mu_i.shape, np.sqrt(0.1))  # Standard deviation is the sqrt of variance
-        dist = dists.Normal(mu_i, scale)
+        #scale = torch.full(mu_i.shape, np.sqrt(0.1))  # Standard deviation is the sqrt of variance
+        covariance_matrix = torch.full((self.action_dim, self.action_dim), 0.1)
+        dist = dists.MultivariateNormal(mu_i, covariance_matrix)
         sample = dist.rsample()
         a = torch.tanh(sample) * self.action_bound
         #print(a.shape)
@@ -75,6 +76,22 @@ class Double_Q_Critic(nn.Module):
         q1 = self.fc_out1(q1)
         return q1
 
+def evaluate_policy2(env, agent, device, turns = 3):
+    total_scores = 0
+    for j in range(turns):
+        s, info = env.reset()
+        done = False
+        while not done:
+            with torch.no_grad():
+                s = torch.FloatTensor(s[np.newaxis, :]).to(device)
+                a, _ = agent.actor(s).cpu().numpy()[0]
+                s_next, r, dw, tr, info = env.step(a)
+                done = (dw or tr)
+
+                total_scores += r
+                s = s_next
+    return int(total_scores/turns)
+
 def evaluate_policy(env, agent, device, turns = 3):
     total_scores = 0
     for j in range(turns):
@@ -83,7 +100,7 @@ def evaluate_policy(env, agent, device, turns = 3):
         while not done:
             with torch.no_grad():
                 s = torch.FloatTensor(s[np.newaxis, :]).to(device)
-                a = agent.actor(s).cpu().numpy()[0]
+                a = agent.actor(s)[0].cpu().numpy()[0]
                 s_next, r, dw, tr, info = env.step(a)
                 done = (dw or tr)
 
