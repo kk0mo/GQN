@@ -29,7 +29,7 @@ parser.add_argument('--hidden_dim', type=int, default=256, help='Hidden net widt
 parser.add_argument('--actor_lr', type=float, default=1e-4, help='Learning rate of actor')
 parser.add_argument('--critic_lr', type=float, default=1e-4, help='Learning rate of critic')
 parser.add_argument('--alpha_lr', type=float, default=1e-4, help='Learning rate of critic')
-parser.add_argument('--batch_size', type=int, default=256, help='batch_size of training')
+parser.add_argument('--batch_size', type=int, default=512, help='batch_size of training')
 parser.add_argument('--explore_noise', type=float, default=0.15, help='exploring noise when interacting')
 parser.add_argument('--explore_noise_decay', type=float, default=0.998, help='Decay rate of explore noise')
 opt = parser.parse_args()
@@ -65,13 +65,12 @@ def main():
     # Build SummaryWriter to record training curves
     if opt.write:
         from torch.utils.tensorboard import SummaryWriter
-        time_now = datetime.now().strftime("%d-%m-%Y %H:%M")
-        write_path = os.path.join('runs', EnvName[opt.EnvIdex] + time_now)
+        time_now = datetime.now().strftime("%d-%m-%Y/%H:%M")
+        write_path = os.path.join('runs', EnvName[opt.EnvIdex], time_now)
         if os.path.exists(write_path):
             shutil.rmtree(write_path)
         writer = SummaryWriter(log_dir=write_path)
         
-
     # Build DRL model
     if not os.path.exists('model'): os.mkdir('model')
     agent = GSAC_agent(**vars(opt)) # var: transfer argparse to dictionary
@@ -96,7 +95,7 @@ def main():
 
             '''Interact & trian'''
             while not done:
-                if total_steps < (10*opt.max_e_steps): 
+                if total_steps < (4*opt.max_e_steps): 
                     a = env.action_space.sample() # warm up
                 else:
                     with torch.no_grad():
@@ -119,14 +118,15 @@ def main():
                 '''record & log'''
                 if total_steps % opt.eval_interval == 0:
                     agent.explore_noise *= opt.explore_noise_decay
-                    ep_r = evaluate_policy(eval_env, agent, opt.device, turns=3)
+                    ep_rew, ep_entropy = evaluate_policy(eval_env, agent, opt.device, turns=3)
                     if opt.write: 
-                        writer.add_scalar('ep_r', ep_r, global_step=total_steps)
+                        writer.add_scalar('ep_r', ep_rew, global_step=total_steps)
+                        writer.add_scalar('ep_entropy', ep_entropy, global_step=total_steps)
                     # Assuming total_steps is defined somewhere in your code
                     total_steps_suffix = "k" if total_steps < 1e6 else "m"
                     total_steps_value = total_steps / 1000 if total_steps < 1e6 else total_steps / 1e6
                     formatted_steps = f"{int(total_steps_value)}{total_steps_suffix}"
-                    print(f'EnvName:{EnvName[opt.EnvIdex]}, Steps: {formatted_steps}, Episode Reward:{ep_r}')
+                    print(f'EnvName:{EnvName[opt.EnvIdex]}, Steps: {formatted_steps}, Episode Reward:{ep_rew}, Episode Entropy:{ep_entropy}')
 
 
                 '''save model'''

@@ -10,7 +10,7 @@ class Actor(nn.Module):
     def __init__(self, state_dim, action_dim, hidden_dim, action_bound, gmm_k):
         super(Actor, self).__init__()
         self.fc1 = nn.Linear(state_dim, hidden_dim)
-        self.fc2 = nn.Linear(hidden_dim, hidden_dim)
+        #self.fc2 = nn.Linear(hidden_dim, hidden_dim)
         self.fc_mu = nn.Linear(hidden_dim, action_dim*gmm_k)
         self.fc_lamda = nn.Linear(hidden_dim, gmm_k)
         self.action_bound = action_bound
@@ -19,7 +19,7 @@ class Actor(nn.Module):
 
     def forward(self, state):
         x = F.softplus(self.fc1(state))
-        x = F.softplus(self.fc2(x))
+        #x = F.softplus(self.fc2(x))
         lamda_array = torch.softmax(self.fc_lamda(x), dim=-1)
         #print(lamda_array)
         lamda_i = torch.multinomial(lamda_array, num_samples=1)
@@ -94,19 +94,28 @@ def evaluate_policy2(env, agent, device, turns = 3):
 
 def evaluate_policy(env, agent, device, turns = 3):
     total_scores = 0
+    total_entropy = 0
+    a_array = []
     for j in range(turns):
         s, info = env.reset()
         done = False
         while not done:
             with torch.no_grad():
                 s = torch.FloatTensor(s[np.newaxis, :]).to(device)
-                a = agent.actor(s)[0].cpu().numpy()[0]
-                s_next, r, dw, tr, info = env.step(a)
+                a, entropy = agent.actor(s)
+                a_reshaped = a.reshape(-1).detach().cpu().numpy()
+                a_array.append(a_reshaped)
+                #print(a_reshaped.dtype)
+                #print(entropy)
+                s_next, r, dw, tr, info = env.step(a_reshaped)
                 done = (dw or tr)
 
                 total_scores += r
+                total_entropy += entropy
                 s = s_next
-    return int(total_scores/turns)
+    if total_scores < 10:
+        print(a_array)
+    return int(total_scores/turns), int(total_entropy/turns)
 
 def str2bool(v):
     '''transfer str to bool for argparse'''
