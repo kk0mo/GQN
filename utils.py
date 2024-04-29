@@ -99,10 +99,13 @@ def evaluate_policy(env, agent, device, turns = 3):
     for j in range(turns):
         s, info = env.reset()
         done = False
+        step_i = 0
+        entropy_i = 0
+        r_i = 0
         while not done:
             with torch.no_grad():
                 s = torch.FloatTensor(s[np.newaxis, :]).to(device)
-                a, entropy = agent.actor(s)
+                a, entropy, std, la_array, mu = agent.actor(s)
                 a_reshaped = a.reshape(-1).detach().cpu().numpy()
                 a_array.append(a_reshaped)
                 #print(a_reshaped.dtype)
@@ -113,8 +116,13 @@ def evaluate_policy(env, agent, device, turns = 3):
                 total_scores += r
                 total_entropy += entropy
                 s = s_next
-    if total_scores < 10:
-        print(a_array)
+                step_i += 1
+                entropy_i += entropy
+                r_i += r
+        print(f'Entropy:{entropy_i/step_i}, Steps: {step_i}, Episode Reward:{r_i/step_i}, std : {std}, fc_mu: {la_array}, mu : {mu}')
+        #print(total_entropy/step_)
+    #if total_scores < 10:
+    #    print(a_array)
     return int(total_scores/turns), int(total_entropy/turns)
 
 def str2bool(v):

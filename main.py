@@ -11,7 +11,7 @@ import torch
 '''Hyperparameter Setting'''
 parser = argparse.ArgumentParser()
 parser.add_argument('--device', type=str, default='cuda', help='running device: cuda or cpu')
-parser.add_argument('--EnvIdex', type=int, default=2, help='Humanoid-v4,HalfCheetah-v4, Hopper-v4, HumanoidStandup-v4')
+parser.add_argument('--EnvIdex', type=int, default=2, help='Humanoid-v4,HalfCheetah-v4,Swimmer-v4, Hopper-v4, HumanoidStandup-v4')
 parser.add_argument('--render', type=str2bool, default=False, help='Render or Not')
 parser.add_argument('--Loadmodel', type=str2bool, default=False, help='Load pretrained model or Not')
 parser.add_argument('--ModelIdex', type=int, default=30, help='which model to load')
@@ -26,7 +26,7 @@ parser.add_argument('--eval_interval', type=int, default=int(2e3), help='Model e
 parser.add_argument('--delay_freq', type=int, default=1, help='Delayed frequency for Actor and Target Net')
 parser.add_argument('--gamma', type=float, default=0.99, help='Discounted Factor')
 parser.add_argument('--hidden_dim', type=int, default=256, help='Hidden net width, s_dim-400-300-a_dim')
-parser.add_argument('--actor_lr', type=float, default=1e-4, help='Learning rate of actor')
+parser.add_argument('--actor_lr', type=float, default=1e-5, help='Learning rate of actor')
 parser.add_argument('--critic_lr', type=float, default=1e-4, help='Learning rate of critic')
 parser.add_argument('--alpha_lr', type=float, default=1e-4, help='Learning rate of critic')
 parser.add_argument('--batch_size', type=int, default=512, help='batch_size of training')
@@ -38,7 +38,7 @@ opt.device = torch.device(opt.device) # from str to torch.device
 
 
 def main():
-    EnvName = ['Humanoid-v4','HalfCheetah-v4', 'Hopper-v4', 'HumanoidStandup-v4']
+    EnvName = ['Humanoid-v4','HalfCheetah-v4', 'Swimmer-v4', 'Hopper-v4', 'HumanoidStandup-v4']
 
     # Build Env
     env = gym.make(EnvName[opt.EnvIdex], render_mode = "human" if opt.render else None)

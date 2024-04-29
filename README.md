@@ -46,3 +46,21 @@ python main.py --write True
 tensorboard --logdir runs
 ```
 ![Comparsion image](images/comparsion.png)
+
+## Example benchmark
+
+
+|      Environment       |      SAC      | TD3 | 
+| :--------------------: | :----------------: | :-------------------: | 
+|          Ant-v4           |  **3941.8±264.7**  |         **4125.8±79.7**        
+|         Hopper-v4         |  **3512.2±16.5**   |         **3022.6±216.5**        |    
+
+## Example benchmark
+
+
+|      Environment       |      SAC      | GSAC | 
+| :--------------------: | :----------------: | :-------------------: | 
+|         Hopper-v4         |  **3512.2±16.5**   |         **3124.6±216.5**        |    
+|          Ant-v4           |  **3941.8±264.7**  |         **4125.8±79.7**        |
+|          Humanoid-v4           |  **3941.8±264.7**  |         **4125.8±79.7**        |
+    

@@ -18,7 +18,7 @@ class GSAC_agent():
 		self.actor = PolicyNetContinuous(self.state_dim, self.hidden_dim, self.action_dim, self.action_bound, self.gmm_k).to(self.device)
 		self.actor_optimizer = torch.optim.Adam(self.actor.parameters(), lr=self.actor_lr)
 		
-		self.log_alpha = torch.tensor(np.log(0.001), dtype=torch.float)
+		self.log_alpha = torch.tensor(np.log(1e-4), dtype=torch.float)
 		self.log_alpha.requires_grad = True 
 		self.log_alpha_optimizer = torch.optim.Adam([self.log_alpha], lr=self.alpha_lr)
 		self.target_entropy = 0.2*np.log(self.action_dim)
@@ -34,11 +34,11 @@ class GSAC_agent():
 		with torch.no_grad():
 			s, a, r, s_next, dw = self.replay_buffer.sample(self.batch_size)
 			# Compute the target Q
-			target_a_noise = (torch.randn_like(a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
-			next_a, entropy = self.actor(s_next)
+			#target_a_noise = (torch.randn_like(a) * self.policy_noise).clamp(-self.noise_clip, self.noise_clip)
+			next_a, entropy, _, _, _ = self.actor(s_next)
 			entropy = entropy.unsqueeze(1)
-			smoothed_target_a = (next_a + target_a_noise).clamp(-self.action_bound, self.action_bound)
-			target_Q1, target_Q2 = self.q_critic_target(s_next, smoothed_target_a)
+			#smoothed_target_a = (next_a + target_a_noise).clamp(-self.action_bound, self.action_bound)
+			target_Q1, target_Q2 = self.q_critic_target(s_next, next_a)
 			soft_Q = torch.min(target_Q1, target_Q2) + self.log_alpha.exp() * entropy
 			target_Q = r + (~dw) * self.gamma * soft_Q  #dw: die or win
 
@@ -48,6 +48,7 @@ class GSAC_agent():
 		#raise ValueError("Division by zero is not allowed.")
 		# Compute critic loss, and Optimize the q_critic
 		q_loss = F.mse_loss(current_Q1, target_Q) + F.mse_loss(current_Q2, target_Q)
+		self.q_critic_optimizer.zero_grad()
 		q_loss.backward()
 		self.q_critic_optimizer.step()
 		
@@ -67,9 +68,14 @@ class GSAC_agent():
         
 		if self.delay_counter > self.delay_freq:
 			# Update Actor
-			new_actions, new_entropy = self.actor(s)
+			new_actions, new_entropy, _, _, _ = self.actor(s)
 			new_Q1, new_Q2 = self.q_critic_target(s, new_actions)
-			actor_loss = torch.mean(self.log_alpha.exp() * (-new_entropy) - torch.min(new_Q1, new_Q2))
+			#print(-new_entropy)
+			#print(torch.log(-new_entropy))
+			actor_loss = torch.mean(self.log_alpha.exp()*(-new_entropy) - torch.min(new_Q1, new_Q2))
+			#print(actor_loss)
+			#actor_loss = self.log_alpha.exp()*torch.log(-new_entropy) - torch.min(new_Q1, new_Q2)
+			#print(actor_loss)
 			self.actor_optimizer.zero_grad()
 			actor_loss.backward()
 			'''
@@ -78,8 +84,14 @@ class GSAC_agent():
 					print(f"Gradient for {name}: {param.grad.norm().item()}") 
 				else:
 					print(f"No gradient for {name}")
+			print('--------------- q_critic -------------')
+			for name, param in self.q_critic.named_parameters():
+				if param.grad is not None:
+					print(f"Gradient for {name}: {param.grad.norm().item()}") 
+				else:
+					print(f"No gradient for {name}")
 			raise ValueError('sth wrong here')
-			'''
+			#'''
 			self.actor_optimizer.step()
 
 			# Update the frozen target models
